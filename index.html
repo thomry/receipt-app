@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>내 레시피 노트</title>
+<meta name="theme-color" content="#c2410c">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg">
+<style>
+:root{
+  --bg:#faf8f5; --surface:#ffffff; --surface2:#f3efe9; --line:#e6e0d8;
+  --ink:#1f1b16; --ink2:#5c544a; --muted:#8a8176;
+  --accent:#c2410c; --accent-soft:#fde7dc; --on-accent:#fff;
+  --weight:#2563eb; --danger:#b91c1c; --grid:#ece7e0;
+  --shadow:0 1px 2px rgba(0,0,0,.06),0 4px 12px rgba(0,0,0,.05);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16130f; --surface:#211d18; --surface2:#2b261f; --line:#3a332b;
+    --ink:#f3ede5; --ink2:#c4baad; --muted:#94897b;
+    --accent:#f08a5d; --accent-soft:#3d2418; --on-accent:#1a0f08;
+    --weight:#7aa7ff; --danger:#f87171; --grid:#302a23;
+    --shadow:none;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16130f; --surface:#211d18; --surface2:#2b261f; --line:#3a332b;
+  --ink:#f3ede5; --ink2:#c4baad; --muted:#94897b;
+  --accent:#f08a5d; --accent-soft:#3d2418; --on-accent:#1a0f08;
+  --weight:#7aa7ff; --danger:#f87171; --grid:#302a23; --shadow:none;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;-webkit-tap-highlight-color:transparent;padding-bottom:calc(72px + env(safe-area-inset-bottom))}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:14px 16px 8px;display:flex;align-items:center;justify-content:space-between}
+header h1{font-size:20px;margin:0;letter-spacing:-.02em}
+main{padding:0 16px 16px;max-width:720px;margin:0 auto}
+nav.tabs{position:fixed;bottom:0;left:0;right:0;z-index:10;display:flex;background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.tabs button{flex:1;border:0;background:none;color:var(--muted);padding:8px 0 10px;font:inherit;font-size:12px;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.tabs button svg{width:24px;height:24px}
+nav.tabs button[aria-selected="true"]{color:var(--accent);font-weight:600}
+.view{display:none}.view.on{display:block}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:var(--shadow)}
+.stack>*+*{margin-top:10px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+textarea{min-height:110px;resize:vertical}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--accent);outline-offset:-1px}
+label.f{display:block;font-size:13px;color:var(--ink2);margin:12px 0 4px;font-weight:600}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-weight:600;border-radius:10px;padding:10px 14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+.btn.ghost{border-color:transparent;background:transparent}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn.block{width:100%}
+.row{display:flex;gap:8px;align-items:center}
+.row>.grow{flex:1;min-width:0}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:2px 0 6px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1px solid var(--line);background:var(--surface);color:var(--ink2);border-radius:999px;padding:6px 12px;font:inherit;font-size:13px;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:600}
+.muted{color:var(--muted)} .small{font-size:13px}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.ritem{display:block;text-align:left;width:100%;font:inherit;color:inherit;cursor:pointer}
+.ritem h3{margin:0 0 2px;font-size:16px}
+.badge{display:inline-block;font-size:12px;border-radius:6px;padding:1px 7px;background:var(--surface2);color:var(--ink2);margin-right:4px}
+.badge.hot{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.empty{text-align:center;color:var(--muted);padding:40px 12px}
+.fab{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:9;width:56px;height:56px;border-radius:18px;border:0;background:var(--accent);color:var(--on-accent);font-size:28px;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+/* calendar */
+.calhead{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.calhead b{font-size:17px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .dow{text-align:center;font-size:12px;color:var(--muted);padding:2px 0}
+.cal .dow:first-child{color:var(--danger)}
+.day{aspect-ratio:1/1.05;border:1px solid transparent;border-radius:10px;background:var(--surface);font:inherit;color:var(--ink);padding:4px 0 0;display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;min-width:0}
+.day.out{opacity:.35}
+.day.today{border-color:var(--accent)}
+.day.sel{background:var(--accent);color:var(--on-accent)}
+.day .dots{display:flex;gap:3px;height:6px}
+.day .dot{width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.day .dot.w{background:var(--weight)}
+.day.sel .dot{background:var(--on-accent)}
+.timeline{margin-top:14px}
+.tl{display:flex;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);align-items:flex-start}
+.tl:last-child{border-bottom:0}
+.tl .tm{font-variant-numeric:tabular-nums;font-weight:600;width:48px;flex:none;color:var(--ink2)}
+.tl .ic{width:26px;height:26px;border-radius:8px;flex:none;display:grid;place-items:center;font-size:14px;background:var(--accent-soft)}
+.tl .ic.w{background:color-mix(in srgb,var(--weight) 18%,transparent)}
+.tl .body{flex:1;min-width:0}
+.tl .body .t{font-weight:600;word-break:break-word}
+/* chart */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px}
+.stat .k{font-size:12px;color:var(--muted)}
+.stat .v{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.chartwrap{position:relative}
+#wchart{width:100%;height:240px;display:block;touch-action:pan-y}
+#wchart text{fill:var(--muted);font-size:11px;font-family:inherit}
+.tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 8px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-110%);display:none;font-variant-numeric:tabular-nums}
+table{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+td,th{padding:8px 4px;border-bottom:1px solid var(--line);text-align:left}
+th{color:var(--muted);font-weight:600;font-size:12px}
+/* dialog */
+dialog{border:0;padding:0;background:var(--surface);color:var(--ink);width:min(100% - 24px,560px);max-height:calc(100% - 40px);border-radius:18px}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:18px 16px}
+.dlg h2{margin:0 0 4px;font-size:18px}
+.dlg .actions{display:flex;gap:8px;margin-top:18px}
+.dlg .actions .btn{flex:1}
+.ing{display:flex;flex-wrap:wrap;gap:6px}
+.ing span{background:var(--surface2);border-radius:8px;padding:4px 10px;font-size:14px}
+ol.steps{padding-left:22px;margin:6px 0}
+ol.steps li{margin:6px 0}
+.seg{display:flex;background:var(--surface2);border-radius:10px;padding:3px}
+.seg button{flex:1;border:0;background:none;font:inherit;font-size:13px;padding:6px;border-radius:8px;color:var(--ink2)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--ink);font-weight:600;box-shadow:var(--shadow)}
+h2.sec{font-size:15px;margin:22px 0 8px}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:100;opacity:0;transition:opacity .2s;pointer-events:none}
+.toast.on{opacity:1}
+a{color:var(--accent)}
+</style>
+</head>
+<body>
+<header><h1 id="title">레시피</h1><span class="muted small" id="hsub"></span></header>
+<main>
+  <!-- 레시피 -->
+  <section class="view on" id="v-recipes">
+    <input id="q" type="search" placeholder="재료로 검색 (예: 계란, 양파)" autocomplete="off">
+    <div class="chips" id="catChips" style="margin-top:8px"></div>
+    <div class="row small">
+      <div class="seg grow" id="sortSeg">
+        <button data-v="new" aria-pressed="true">최신순</button>
+        <button data-v="freq" aria-pressed="false">자주 만든 순</button>
+        <button data-v="hot" aria-pressed="false">🔥 자주 만든 것만</button>
+      </div>
+    </div>
+    <div class="list" id="rlist"></div>
+  </section>
+
+  <!-- 달력 -->
+  <section class="view" id="v-cal">
+    <div class="card">
+      <div class="calhead">
+        <button class="btn ghost sm" id="prevM" aria-label="이전 달">‹</button>
+        <b id="mLabel"></b>
+        <button class="btn ghost sm" id="nextM" aria-label="다음 달">›</button>
+      </div>
+      <div class="cal" id="cal"></div>
+      <div class="row small muted" style="margin-top:8px;gap:14px;justify-content:center">
+        <span><span class="dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent)"></span> 먹은 것</span>
+        <span><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--weight)"></span> 몸무게</span>
+      </div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <b class="grow" id="dLabel"></b>
+      <button class="btn sm primary" id="addMeal">+ 먹은 것</button>
+      <button class="btn sm" id="addWeight">+ 몸무게</button>
+    </div>
+    <div class="card timeline" id="timeline"></div>
+  </section>
+
+  <!-- 몸무게 -->
+  <section class="view" id="v-weight">
+    <div class="seg" id="rangeSeg" style="margin-bottom:12px">
+      <button data-v="30" aria-pressed="true">1개월</button>
+      <button data-v="90" aria-pressed="false">3개월</button>
+      <button data-v="365" aria-pressed="false">1년</button>
+      <button data-v="0" aria-pressed="false">전체</button>
+    </div>
+    <div class="stats" id="wstats"></div>
+    <div class="card chartwrap">
+      <div class="small muted" style="margin-bottom:4px">몸무게 (kg)</div>
+      <svg id="wchart" role="img" aria-label="몸무게 변화 그래프"></svg>
+      <div class="tip" id="tip"></div>
+    </div>
+    <h2 class="sec">기록 목록</h2>
+    <div class="card"><table><thead><tr><th>날짜</th><th>시간</th><th style="text-align:right">kg</th><th></th></tr></thead><tbody id="wtable"></tbody></table></div>
+  </section>
+
+  <!-- 설정 -->
+  <section class="view" id="v-set">
+    <div class="card stack">
+      <b>저장 공간</b>
+      <div id="usage" class="small"></div>
+    </div>
+
+    <h2 class="sec">📊 Claude 분석용 리포트</h2>
+    <div class="card stack">
+      <div class="small muted">기간을 고르고 내보내면 JSON 파일이 만들어져요. 그 파일을 Claude 대화창에 올리고 “분석해줘”라고 하면 돼요. 파일 안에 데이터 설명과 요약 통계가 같이 들어 있어요.</div>
+      <select id="repRange">
+        <option value="30">최근 30일</option>
+        <option value="90" selected>최근 90일</option>
+        <option value="365">최근 1년</option>
+        <option value="0">전체 기간</option>
+      </select>
+      <button class="btn primary block" id="exportReport">리포트 내보내기</button>
+    </div>
+
+    <h2 class="sec">💾 백업 / 복원</h2>
+    <div class="card stack">
+      <div class="small muted">폰을 바꾸거나 브라우저 데이터를 지울 때를 대비해 가끔 백업해 두세요.</div>
+      <div class="row">
+        <button class="btn grow" id="backup">백업 파일 저장</button>
+        <button class="btn grow" id="restoreBtn">백업 불러오기</button>
+      </div>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+    </div>
+
+    <h2 class="sec">🗑️ 데이터 정리</h2>
+    <div class="card stack">
+      <label class="f" style="margin-top:0">이 날짜 이전의 달력 기록 삭제</label>
+      <div class="row">
+        <input type="date" id="cutDate" class="grow">
+        <button class="btn danger" id="cutBtn">삭제</button>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn danger sm" data-wipe="meal">먹은 기록 전체 삭제</button>
+        <button class="btn danger sm" data-wipe="weight">몸무게 전체 삭제</button>
+        <button class="btn danger sm" data-wipe="recipe">레시피 전체 삭제</button>
+        <button class="btn danger sm" data-wipe="all">모두 삭제</button>
+      </div>
+    </div>
+
+    <h2 class="sec">화면</h2>
+    <div class="seg" id="themeSeg">
+      <button data-v="auto" aria-pressed="true">시스템</button>
+      <button data-v="light" aria-pressed="false">라이트</button>
+      <button data-v="dark" aria-pressed="false">다크</button>
+    </div>
+    <p class="small muted" style="margin-top:20px">모든 데이터는 이 폰의 브라우저 안에만 저장되고 어디에도 업로드되지 않아요.</p>
+  </section>
+</main>
+
+<button class="fab" id="fab" aria-label="레시피 추가">+</button>
+
+<nav class="tabs" role="tablist">
+  <button data-tab="recipes" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zm0 0A2 2 0 0 0 6 22h13"/><path d="M9 7h6M9 11h6"/></svg>레시피</button>
+  <button data-tab="cal" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>달력</button>
+  <button data-tab="weight" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>몸무게</button>
+  <button data-tab="set" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg>설정</button>
+</nav>
+
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============ 저장소 (폰 브라우저 localStorage, 짧은 키로 최소 저장) ============
+ recipes: {i:id, t:제목, c:카테고리, g:[재료], s:[순서], u:링크, n:메모, a:생성일}
+ logs:    {i:id, d:'YYYY-MM-DD', h:'HH:MM', k:'m'(먹은것)|'w'(몸무게), x:자유메모, r:레시피id, w:kg}
+*/
+const KEY = 'rnote.v1';
+const DEFAULT_CATS = ['메인요리','디저트'];
+let DB = load();
+function load(){
+  try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && d.recipes) return d; }catch(e){}
+  return {recipes:[], logs:[]};
+}
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(DB)); }
+  catch(e){ toast('저장 실패: 저장 공간이 부족해요. 오래된 기록을 정리해 주세요.'); }
+}
+if(navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pad = n => String(n).padStart(2,'0');
+const ymd = d => `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; };
+const parseYmd = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
+const daysAgo = n => { const d = new Date(); d.setDate(d.getDate()-n); return ymd(d); };
+const recipeById = id => DB.recipes.find(r => r.i === id);
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 2200); }
+
+/* 레시피별로 달력에 몇 번 기록됐는지 */
+function cookCounts(){
+  const m = {};
+  for(const l of DB.logs) if(l.k==='m' && l.r) m[l.r] = (m[l.r]||0)+1;
+  return m;
+}
+function allCats(){
+  const s = new Set(DEFAULT_CATS);
+  DB.recipes.forEach(r => r.c && s.add(r.c));
+  return [...s];
+}
+
+/* ============ 탭 ============ */
+const TITLES = {recipes:'레시피', cal:'달력', weight:'몸무게', set:'설정'};
+let tab = 'recipes';
+$$('nav.tabs button').forEach(b => b.onclick = () => go(b.dataset.tab));
+function go(t){
+  tab = t;
+  $$('nav.tabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.tab===t));
+  $$('.view').forEach(v => v.classList.toggle('on', v.id==='v-'+t));
+  $('#title').textContent = TITLES[t];
+  $('#fab').style.display = t==='recipes' ? '' : 'none';
+  render();
+}
+function render(){
+  if(tab==='recipes') renderRecipes();
+  if(tab==='cal') renderCal();
+  if(tab==='weight') renderWeight();
+  if(tab==='set') renderSettings();
+}
+function seg(el, cb){
+  el.addEventListener('click', e => {
+    const b = e.target.closest('button'); if(!b) return;
+    el.querySelectorAll('button').forEach(x => x.setAttribute('aria-pressed', x===b));
+    cb(b.dataset.v);
+  });
+}
+
+/* ============ 레시피 목록/검색 ============ */
+let cat = '전체', sort = 'new';
+const HOT_MIN = 3; // 이만큼 이상 만들면 '자주 만든'
+$('#q').addEventListener('input', renderRecipes);
+seg($('#sortSeg'), v => { sort = v; renderRecipes(); });
+function renderRecipes(){
+  const cats = ['전체', ...allCats()];
+  if(!cats.includes(cat)) cat = '전체';
+  $('#catChips').innerHTML = cats.map(c => `<button class="chip" aria-pressed="${c===cat}" data-c="${esc(c)}">${esc(c)}</button>`).join('');
+  $('#catChips').querySelectorAll('.chip').forEach(b => b.onclick = () => { cat = b.dataset.c; renderRecipes(); });
+
+  const terms = $('#q').value.split(/[,\s]+/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  const cnt = cookCounts();
+  let list = DB.recipes.filter(r =>
+    (cat==='전체' || r.c===cat) &&
+    terms.every(t => r.g.some(g => g.toLowerCase().includes(t)) || r.t.toLowerCase().includes(t))
+  );
+  if(sort==='hot') list = list.filter(r => (cnt[r.i]||0) >= HOT_MIN);
+  list.sort(sort==='new' ? (a,b) => b.a - a.a : (a,b) => (cnt[b.i]||0)-(cnt[a.i]||0) || b.a-a.a);
+
+  $('#hsub').textContent = `${DB.recipes.length}개 저장됨`;
+  if(!list.length){
+    $('#rlist').innerHTML = `<div class="empty">${DB.recipes.length ? (sort==='hot' ? `달력에 ${HOT_MIN}번 이상 기록된 레시피가 아직 없어요` : '조건에 맞는 레시피가 없어요') : '아직 저장한 레시피가 없어요.<br>오른쪽 아래 <b>+</b> 를 눌러 추가해 보세요.'}</div>`;
+    return;
+  }
+  $('#rlist').innerHTML = list.map(r => {
+    const n = cnt[r.i]||0;
+    const hit = terms.length ? r.g.filter(g => terms.some(t => g.toLowerCase().includes(t))) : [];
+    return `<button class="card ritem" data-id="${r.i}">
+      <h3>${esc(r.t)}</h3>
+      <div><span class="badge">${esc(r.c||'기타')}</span>${n ? `<span class="badge ${n>=HOT_MIN?'hot':''}">🍳 ${n}번 만듦</span>`:''}</div>
+      <div class="small muted" style="margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hit.length ? '✔ '+esc(hit.join(', ')) : esc(r.g.join(', '))}</div>
+    </button>`;
+  }).join('');
+  $('#rlist').querySelectorAll('.ritem').forEach(b => b.onclick = () => showRecipe(b.dataset.id));
+}
+
+/* ============ 다이얼로그 ============ */
+const dlg = $('#dlg');
+function openDlg(html){ $('#dlgBody').innerHTML = html; dlg.showModal(); $('#dlgBody').scrollTop = 0; }
+function closeDlg(){ dlg.close(); }
+dlg.addEventListener('click', e => { if(e.target===dlg) closeDlg(); });
+
+function showRecipe(id){
+  const r = recipeById(id); if(!r) return;
+  const n = cookCounts()[id]||0;
+  const lastLog = DB.logs.filter(l => l.r===id).sort((a,b)=> (b.d+b.h).localeCompare(a.d+a.h))[0];
+  openDlg(`
+    <h2>${esc(r.t)}</h2>
+    <div><span class="badge">${esc(r.c||'기타')}</span>${n?`<span class="badge">🍳 ${n}번 만듦</span>`:''}${lastLog?`<span class="badge">최근 ${lastLog.d}</span>`:''}</div>
+    ${r.u ? `<p class="small"><a href="${esc(r.u)}" target="_blank" rel="noopener">▶ 원본 영상/링크 열기</a></p>`:''}
+    <label class="f">재료</label>
+    <div class="ing">${r.g.map(g=>`<span>${esc(g)}</span>`).join('') || '<span class="muted">-</span>'}</div>
+    <label class="f">요리 순서</label>
+    <ol class="steps">${r.s.map(s=>`<li>${esc(s)}</li>`).join('')}</ol>
+    ${r.n ? `<label class="f">메모</label><div class="small" style="white-space:pre-wrap">${esc(r.n)}</div>`:''}
+    <div class="actions">
+      <button class="btn danger" id="rDel">삭제</button>
+      <button class="btn" id="rEdit">수정</button>
+      <button class="btn primary" id="rAte">오늘 만들었어요</button>
+    </div>
+    <button class="btn ghost block" style="margin-top:6px" onclick="closeDlg()">닫기</button>`);
+  $('#rDel').onclick = () => {
+    if(!confirm(`'${r.t}' 레시피를 삭제할까요?\n(달력 기록은 남고, 제목만 메모로 바뀌어요)`)) return;
+    DB.logs.forEach(l => { if(l.r===id){ l.x = l.x ? `${r.t} · ${l.x}` : r.t; delete l.r; } });
+    DB.recipes = DB.recipes.filter(x => x.i!==id); save(); closeDlg(); render(); toast('삭제했어요');
+  };
+  $('#rEdit').onclick = () => recipeForm(r);
+  $('#rAte').onclick = () => logForm('m', {d: ymd(new Date()), r: id});
+}
+
+function recipeForm(r){
+  const isNew = !r;
+  r = r || {t:'', c:'메인요리', g:[], s:[], u:'', n:''};
+  const cats = allCats();
+  openDlg(`
+    <h2>${isNew?'레시피 추가':'레시피 수정'}</h2>
+    <label class="f">제목 *</label>
+    <input id="fT" value="${esc(r.t)}" placeholder="예: 백종원 김치볶음밥">
+    <label class="f">카테고리</label>
+    <select id="fC">${cats.map(c=>`<option ${c===r.c?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">+ 새 카테고리…</option></select>
+    <input id="fCnew" placeholder="새 카테고리 이름 (예: 국/찌개, 반찬)" style="display:none;margin-top:6px">
+    <label class="f">유튜브/출처 링크 (선택)</label>
+    <input id="fU" type="url" value="${esc(r.u)}" placeholder="https://youtu.be/...">
+    <label class="f">재료 — 한 줄에 하나씩 (또는 쉼표로 구분)</label>
+    <textarea id="fG" placeholder="밥 1공기&#10;김치 1컵&#10;계란 1개">${esc(r.g.join('\n'))}</textarea>
+    <label class="f">요리 순서 — 한 줄에 한 단계</label>
+    <textarea id="fS" placeholder="팬에 기름을 두르고 김치를 볶는다&#10;밥을 넣고 섞는다" style="min-height:150px">${esc(r.s.join('\n'))}</textarea>
+    <label class="f">메모 (선택)</label>
+    <textarea id="fN" style="min-height:60px" placeholder="다음엔 설탕 조금 덜">${esc(r.n||'')}</textarea>
+    <div class="actions"><button class="btn" onclick="closeDlg()">취소</button><button class="btn primary" id="fSave">저장</button></div>`);
+  $('#fC').onchange = e => { $('#fCnew').style.display = e.target.value==='__new' ? '' : 'none'; };
+  $('#fSave').onclick = () => {
+    const t = $('#fT').value.trim();
+    if(!t){ toast('제목을 입력해 주세요'); $('#fT').focus(); return; }
+    let c = $('#fC').value; if(c==='__new') c = $('#fCnew').value.trim() || '기타';
+    const lines = v => v.split('\n').map(s=>s.trim()).filter(Boolean);
+    const g = $('#fG').value.split(/\n|,/).map(s=>s.trim()).filter(Boolean);
+    const rec = {i: r.i || uid(), t, c, g, s: lines($('#fS').value), a: r.a || Date.now()};
+    const u = $('#fU').value.trim(), n = $('#fN').value.trim();
+    if(u) rec.u = u; if(n) rec.n = n;  // 빈 값은 저장하지 않음
+    if(isNew) DB.recipes.push(rec); else DB.recipes[DB.recipes.findIndex(x=>x.i===r.i)] = rec;
+    save(); closeDlg(); render(); toast('저장했어요');
+  };
+}
+$('#fab').onclick = () => recipeForm();
+
+/* ============ 달력 ============ */
+let viewM = new Date(); viewM.setDate(1);
+let selD = ymd(new Date());
+$('#prevM').onclick = () => { viewM.setMonth(viewM.getMonth()-1); renderCal(); };
+$('#nextM').onclick = () => { viewM.setMonth(viewM.getMonth()+1); renderCal(); };
+$('#addMeal').onclick = () => logForm('m', {d: selD});
+$('#addWeight').onclick = () => logForm('w', {d: selD});
+
+function renderCal(){
+  const y = viewM.getFullYear(), m = viewM.getMonth();
+  $('#mLabel').textContent = `${y}년 ${m+1}월`;
+  $('#hsub').textContent = '';
+  const byDay = {};
+  DB.logs.forEach(l => { (byDay[l.d] ||= {m:0,w:0})[l.k]++; });
+  const start = new Date(y, m, 1 - new Date(y,m,1).getDay());
+  const today = ymd(new Date());
+  let html = ['일','월','화','수','목','금','토'].map(d=>`<div class="dow">${d}</div>`).join('');
+  for(let i=0;i<42;i++){
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    if(i===35 && d.getMonth()!==m) break;
+    const k = ymd(d), info = byDay[k];
+    html += `<button class="day ${d.getMonth()!==m?'out':''} ${k===today?'today':''} ${k===selD?'sel':''}" data-d="${k}">
+      <span>${d.getDate()}</span><span class="dots">${info&&info.m?'<i class="dot"></i>':''}${info&&info.w?'<i class="dot w"></i>':''}</span></button>`;
+  }
+  $('#cal').innerHTML = html;
+  $('#cal').querySelectorAll('.day').forEach(b => b.onclick = () => {
+    selD = b.dataset.d; const d = parseYmd(selD);
+    if(d.getMonth()!==viewM.getMonth()){ viewM = new Date(d.getFullYear(), d.getMonth(), 1); }
+    renderCal();
+  });
+  renderDay();
+}
+function renderDay(){
+  const d = parseYmd(selD);
+  $('#dLabel').textContent = `${d.getMonth()+1}월 ${d.getDate()}일 (${'일월화수목금토'[d.getDay()]})`;
+  const items = DB.logs.filter(l => l.d===selD).sort((a,b)=>a.h.localeCompare(b.h));
+  if(!items.length){ $('#timeline').innerHTML = `<div class="empty" style="padding:24px">기록이 없어요</div>`; return; }
+  $('#timeline').innerHTML = items.map(l => {
+    if(l.k==='w') return `<div class="tl" data-id="${l.i}"><span class="tm">${l.h}</span><span class="ic w">⚖️</span><div class="body"><div class="t">${l.w} kg</div>${l.x?`<div class="small muted">${esc(l.x)}</div>`:''}</div><button class="btn ghost sm" data-ed="${l.i}">수정</button></div>`;
+    const r = l.r && recipeById(l.r);
+    return `<div class="tl"><span class="tm">${l.h}</span><span class="ic">🍽️</span><div class="body">
+      ${r ? `<div class="t"><a href="#" data-r="${r.i}">${esc(r.t)}</a></div>` : ''}
+      ${l.x ? `<div class="${r?'small muted':'t'}">${esc(l.x)}</div>`:''}</div>
+      <button class="btn ghost sm" data-ed="${l.i}">수정</button></div>`;
+  }).join('');
+  $('#timeline').querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { const l = DB.logs.find(x=>x.i===b.dataset.ed); logForm(l.k, l); });
+  $('#timeline').querySelectorAll('[data-r]').forEach(a => a.onclick = e => { e.preventDefault(); showRecipe(a.dataset.r); });
+}
+
+function logForm(kind, l){
+  const isNew = !l.i;
+  const cnt = cookCounts();
+  const recs = [...DB.recipes].sort((a,b)=>(cnt[b.i]||0)-(cnt[a.i]||0) || a.t.localeCompare(b.t,'ko'));
+  const lastW = [...DB.logs].filter(x=>x.k==='w').sort((a,b)=>(b.d+b.h).localeCompare(a.d+a.h))[0];
+  openDlg(`
+    <h2>${kind==='w' ? '⚖️ 몸무게' : '🍽️ 먹은 것'} ${isNew?'기록':'수정'}</h2>
+    <div class="row">
+      <div class="grow"><label class="f">날짜</label><input type="date" id="lD" value="${l.d}"></div>
+      <div class="grow"><label class="f">시간</label><input type="time" id="lH" value="${l.h||nowHM()}"></div>
+    </div>
+    ${kind==='w' ? `
+      <label class="f">몸무게 (kg)</label>
+      <input id="lW" type="number" inputmode="decimal" step="0.1" min="20" max="300" value="${l.w ?? (lastW?lastW.w:'')}" placeholder="예: 58.4">
+      <label class="f">메모 (선택)</label>
+      <input id="lX" value="${esc(l.x||'')}" placeholder="예: 공복, 운동 후">
+    ` : `
+      <label class="f">내 레시피에서 고르기 (선택)</label>
+      <select id="lR"><option value="">— 선택 안 함 —</option>${recs.map(r=>`<option value="${r.i}" ${r.i===l.r?'selected':''}>${esc(r.t)}${cnt[r.i]?` (${cnt[r.i]})`:''}</option>`).join('')}</select>
+      <label class="f">자유 메모</label>
+      <input id="lX" value="${esc(l.x||'')}" placeholder="예: 편의점 과자, 친구랑 마라탕">
+    `}
+    <div class="actions">
+      ${isNew ? '<button class="btn" onclick="closeDlg()">취소</button>' : '<button class="btn danger" id="lDel">삭제</button>'}
+      <button class="btn primary" id="lSave">저장</button>
+    </div>`);
+  if(!isNew) $('#lDel').onclick = () => { if(!confirm('이 기록을 삭제할까요?')) return; DB.logs = DB.logs.filter(x=>x.i!==l.i); save(); closeDlg(); render(); };
+  $('#lSave').onclick = () => {
+    const rec = {i: l.i || uid(), d: $('#lD').value, h: $('#lH').value || '00:00', k: kind};
+    if(!rec.d){ toast('날짜를 골라 주세요'); return; }
+    const x = $('#lX').value.trim(); if(x) rec.x = x;
+    if(kind==='w'){
+      const w = parseFloat($('#lW').value);
+      if(!(w>0)){ toast('몸무게를 입력해 주세요'); return; }
+      rec.w = Math.round(w*10)/10;
+    } else {
+      const r = $('#lR').value; if(r) rec.r = r;
+      if(!rec.r && !rec.x){ toast('레시피를 고르거나 메모를 적어 주세요'); return; }
+    }
+    if(isNew) DB.logs.push(rec); else DB.logs[DB.logs.findIndex(z=>z.i===l.i)] = rec;
+    save(); closeDlg();
+    selD = rec.d; const dd = parseYmd(rec.d); viewM = new Date(dd.getFullYear(), dd.getMonth(), 1);
+    if(tab==='recipes'){ toast('달력에 기록했어요'); }
+    render();
+  };
+}
+
+/* ============ 몸무게 그래프 ============ */
+let wRange = 30;
+seg($('#rangeSeg'), v => { wRange = +v; renderWeight(); });
+window.addEventListener('resize', () => { if(tab==='weight') renderWeight(); });
+function weightPts(){
+  return DB.logs.filter(l => l.k==='w' && (!wRange || l.d >= daysAgo(wRange)))
+    .map(l => ({l, t: parseYmd(l.d).getTime() + (+l.h.slice(0,2)*60 + +l.h.slice(3))*60000, w: l.w}))
+    .sort((a,b)=>a.t-b.t);
+}
+function renderWeight(){
+  $('#hsub').textContent = '';
+  const pts = weightPts();
+  const svg = $('#wchart');
+  const f1 = v => v.toFixed(1);
+  if(!pts.length){
+    $('#wstats').innerHTML = '';
+    svg.innerHTML = ''; svg.style.height = '0';
+    $('#wtable').innerHTML = `<tr><td colspan="4" class="empty">이 기간에 몸무게 기록이 없어요.<br>달력 탭에서 “+ 몸무게”로 기록해 보세요.</td></tr>`;
+    return;
+  }
+  svg.style.height = '';
+  const ws = pts.map(p=>p.w), last = ws[ws.length-1], diff = last - ws[0];
+  $('#wstats').innerHTML = `
+    <div class="stat"><div class="k">최근</div><div class="v">${f1(last)}</div></div>
+    <div class="stat"><div class="k">기간 변화</div><div class="v">${diff>0?'+':''}${f1(diff)}</div></div>
+    <div class="stat"><div class="k">최저 / 최고</div><div class="v" style="font-size:16px">${f1(Math.min(...ws))} / ${f1(Math.max(...ws))}</div></div>`;
+
+  const W = svg.clientWidth || 320, H = 240, P = {l:36, r:12, t:12, b:24};
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  let lo = Math.min(...ws), hi = Math.max(...ws);
+  const padY = Math.max(0.5, (hi-lo)*0.15); lo = Math.floor(lo-padY); hi = Math.ceil(hi+padY);
+  let t0 = pts[0].t, t1 = pts[pts.length-1].t; if(t1===t0){ t0 -= 864e5; t1 += 864e5; }
+  const X = t => P.l + (t-t0)/(t1-t0)*(W-P.l-P.r);
+  const Y = w => P.t + (hi-w)/(hi-lo)*(H-P.t-P.b);
+  const step = (hi-lo) <= 4 ? 1 : (hi-lo) <= 10 ? 2 : 5;
+  let g = '';
+  for(let v = Math.ceil(lo/step)*step; v <= hi; v += step)
+    g += `<line x1="${P.l}" x2="${W-P.r}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--grid)" stroke-width="1"/><text x="${P.l-6}" y="${Y(v)+4}" text-anchor="end">${v}</text>`;
+  const nTicks = Math.min(4, pts.length);
+  for(let i=0;i<nTicks;i++){
+    const t = t0 + (t1-t0)*(nTicks===1?0.5:i/(nTicks-1)); const d = new Date(t);
+    g += `<text x="${X(t)}" y="${H-6}" text-anchor="${i===0?'start':i===nTicks-1?'end':'middle'}">${d.getMonth()+1}/${d.getDate()}</text>`;
+  }
+  const path = pts.map((p,i)=>`${i?'L':'M'}${X(p.t).toFixed(1)},${Y(p.w).toFixed(1)}`).join('');
+  const dots = pts.length <= 40 ? pts.map(p=>`<circle cx="${X(p.t)}" cy="${Y(p.w)}" r="3" fill="var(--weight)" stroke="var(--surface)" stroke-width="2"/>`).join('') : '';
+  const lp = pts[pts.length-1];
+  svg.innerHTML = g + `<path d="${path}" fill="none" stroke="var(--weight)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>` + dots +
+    `<circle cx="${X(lp.t)}" cy="${Y(lp.w)}" r="5" fill="var(--weight)" stroke="var(--surface)" stroke-width="2"/>` +
+    `<line id="xh" y1="${P.t}" y2="${H-P.b}" stroke="var(--muted)" stroke-width="1" stroke-dasharray="3 3" style="display:none"/>` +
+    `<circle id="xhd" r="6" fill="var(--weight)" stroke="var(--surface)" stroke-width="2" style="display:none"/>`;
+
+  const tip = $('#tip');
+  const move = e => {
+    const rect = svg.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const sx = cx * (W / rect.width);
+    let best = pts[0]; for(const p of pts) if(Math.abs(X(p.t)-sx) < Math.abs(X(best.t)-sx)) best = p;
+    const bx = X(best.t), by = Y(best.w);
+    const xh = $('#xh'), xd = $('#xhd');
+    xh.setAttribute('x1', bx); xh.setAttribute('x2', bx); xh.style.display = '';
+    xd.setAttribute('cx', bx); xd.setAttribute('cy', by); xd.style.display = '';
+    tip.style.display = 'block';
+    tip.style.left = Math.min(Math.max(bx*rect.width/W + 14, 60), rect.width - 46) + 'px';
+    tip.style.top = (by*rect.height/H + 30) + 'px';
+    tip.innerHTML = `<b>${f1(best.w)} kg</b> · ${best.l.d.slice(5).replace('-','/')} ${best.l.h}`;
+  };
+  const leave = () => { tip.style.display='none'; const xh=$('#xh'), xd=$('#xhd'); if(xh){xh.style.display='none'; xd.style.display='none';} };
+  svg.onmousemove = move; svg.ontouchstart = move; svg.ontouchmove = move;
+  svg.onmouseleave = leave; svg.ontouchend = () => setTimeout(leave, 1500);
+
+  $('#wtable').innerHTML = [...pts].reverse().map(p =>
+    `<tr><td>${p.l.d}</td><td>${p.l.h}</td><td style="text-align:right"><b>${f1(p.w)}</b></td><td style="text-align:right"><button class="btn ghost sm" data-ed="${p.l.i}">수정</button></td></tr>`).join('');
+  $('#wtable').querySelectorAll('[data-ed]').forEach(b => b.onclick = () => { const l = DB.logs.find(x=>x.i===b.dataset.ed); logForm('w', l); });
+}
+
+/* ============ 설정: 용량 / 리포트 / 백업 / 삭제 ============ */
+function renderSettings(){
+  $('#hsub').textContent = '';
+  const bytes = new Blob([localStorage.getItem(KEY)||'']).size;
+  const kb = bytes/1024;
+  const meals = DB.logs.filter(l=>l.k==='m').length, wts = DB.logs.filter(l=>l.k==='w').length;
+  $('#usage').innerHTML = `레시피 <b>${DB.recipes.length}</b>개 · 먹은 기록 <b>${meals}</b>개 · 몸무게 <b>${wts}</b>개<br>
+    사용 중: <b>${kb < 1024 ? kb.toFixed(1)+' KB' : (kb/1024).toFixed(2)+' MB'}</b> <span class="muted">(브라우저 한도 약 5MB · 글자만 저장해서 레시피 수천 개도 괜찮아요)</span>`;
+  const tm = document.documentElement.dataset.theme || 'auto';
+  $$('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===tm));
+}
+
+function download(name, obj){
+  const blob = new Blob([JSON.stringify(obj, null, 1)], {type:'application/json'});
+  const file = new File([blob], name, {type:'application/json'});
+  if(navigator.canShare && navigator.canShare({files:[file]})){
+    navigator.share({files:[file], title:name}).catch(()=>{});
+    return;
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+}
+
+function buildReport(rangeDays){
+  const from = rangeDays ? daysAgo(rangeDays) : null;
+  const logs = DB.logs.filter(l => !from || l.d >= from).sort((a,b)=>(a.d+a.h).localeCompare(b.d+b.h));
+  const meals = logs.filter(l=>l.k==='m'), weights = logs.filter(l=>l.k==='w');
+  const rmap = Object.fromEntries(DB.recipes.map(r=>[r.i,r]));
+  // 요약 통계
+  const recCount = {}; meals.forEach(m => { if(m.r && rmap[m.r]) recCount[rmap[m.r].t] = (recCount[rmap[m.r].t]||0)+1; });
+  const byHour = Array(24).fill(0); meals.forEach(m => byHour[+m.h.slice(0,2)]++);
+  const byCat = {}; meals.forEach(m => { const c = m.r && rmap[m.r] ? rmap[m.r].c : '(레시피 아님)'; byCat[c] = (byCat[c]||0)+1; });
+  const daysWithMeals = new Set(meals.map(m=>m.d)).size;
+  const weekly = {};
+  weights.forEach(w => { const d = parseYmd(w.d); d.setDate(d.getDate() - ((d.getDay()+6)%7)); const k = ymd(d); (weekly[k] ||= []).push(w.w); });
+  return {
+    _안내: '이 파일은 "내 레시피 노트" 앱의 데이터 내보내기입니다. Claude에게: 아래 schema를 참고해 식습관 패턴, 자주 먹는 음식, 식사 시간대, 몸무게 추세와 식사 기록의 관계 등을 분석해 주세요. 의학적 진단이 아닌 생활 습관 관점의 조언이면 충분합니다.',
+    schema: {
+      recipes: '저장된 레시피. id, title, category, ingredients[], steps[], url(출처), note',
+      meals: '먹은 기록. date(YYYY-MM-DD), time(HH:MM, 24시간), recipe(레시피 제목, 레시피에서 고른 경우), memo(자유 입력: 과자/외식 등)',
+      weights: '몸무게 기록. date, time, kg, memo(예: 공복)',
+      summary: '앱이 미리 계산한 요약 통계'
+    },
+    meta: { exportedAt: new Date().toISOString(), period: { from: from || (logs[0]?.d ?? null), to: ymd(new Date()) }, timezone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+    summary: {
+      recipeCount: DB.recipes.length,
+      mealLogCount: meals.length,
+      daysWithMealLogs: daysWithMeals,
+      avgMealLogsPerLoggedDay: daysWithMeals ? +(meals.length/daysWithMeals).toFixed(2) : 0,
+      mostCookedRecipes: Object.entries(recCount).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([title,count])=>({title,count})),
+      mealsByCategory: byCat,
+      mealsByHour: Object.fromEntries(byHour.map((n,h)=>[pad(h), n]).filter(x=>x[1])),
+      weight: weights.length ? {
+        count: weights.length, first: weights[0].w, last: weights[weights.length-1].w,
+        change: +(weights[weights.length-1].w - weights[0].w).toFixed(1),
+        min: Math.min(...weights.map(w=>w.w)), max: Math.max(...weights.map(w=>w.w)),
+        weeklyAverage: Object.entries(weekly).map(([weekStart, a]) => ({weekStart, avg: +(a.reduce((s,x)=>s+x,0)/a.length).toFixed(2), n: a.length}))
+      } : null
+    },
+    recipes: DB.recipes.map(r => ({id:r.i, title:r.t, category:r.c, ingredients:r.g, steps:r.s, url:r.u, note:r.n})),
+    meals: meals.map(m => ({date:m.d, time:m.h, recipe: m.r && rmap[m.r] ? rmap[m.r].t : undefined, memo:m.x})),
+    weights: weights.map(w => ({date:w.d, time:w.h, kg:w.w, memo:w.x}))
+  };
+}
+$('#exportReport').onclick = () => {
+  const r = +$('#repRange').value;
+  download(`recipe-report-${ymd(new Date())}.json`, buildReport(r));
+};
+$('#backup').onclick = () => download(`recipe-backup-${ymd(new Date())}.json`, {app:'rnote', v:1, savedAt:new Date().toISOString(), data:DB});
+$('#restoreBtn').onclick = () => $('#restoreFile').click();
+$('#restoreFile').onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ''; if(!f) return;
+  try{
+    const j = JSON.parse(await f.text());
+    const d = j.data;
+    if(j.app!=='rnote' || !d || !Array.isArray(d.recipes) || !Array.isArray(d.logs)) throw 0;
+    const mode = confirm(`레시피 ${d.recipes.length}개, 기록 ${d.logs.length}개가 들어있어요.\n\n[확인] 지금 데이터와 합치기\n[취소] 그만두기`);
+    if(!mode) return;
+    const ids = new Set([...DB.recipes, ...DB.logs].map(x=>x.i));
+    DB.recipes.push(...d.recipes.filter(x=>!ids.has(x.i)));
+    DB.logs.push(...d.logs.filter(x=>!ids.has(x.i)));
+    save(); render(); toast('불러왔어요');
+  }catch(_){ toast('백업 파일이 아니에요 (리포트 파일은 복원용이 아니에요)'); }
+};
+$('#cutBtn').onclick = () => {
+  const d = $('#cutDate').value; if(!d){ toast('날짜를 골라 주세요'); return; }
+  const n = DB.logs.filter(l=>l.d<d).length;
+  if(!n){ toast('삭제할 기록이 없어요'); return; }
+  if(!confirm(`${d} 이전 달력 기록 ${n}개를 삭제할까요?\n(레시피는 그대로 남아요)`)) return;
+  DB.logs = DB.logs.filter(l=>l.d>=d); save(); render(); toast(`${n}개 삭제했어요`);
+};
+$$('[data-wipe]').forEach(b => b.onclick = () => {
+  const w = b.dataset.wipe;
+  const label = {meal:'먹은 기록 전체', weight:'몸무게 기록 전체', recipe:'레시피 전체', all:'모든 데이터'}[w];
+  if(!confirm(`${label}를 삭제할까요? 되돌릴 수 없어요.\n(필요하면 먼저 백업해 두세요)`)) return;
+  if(w==='meal') DB.logs = DB.logs.filter(l=>l.k!=='m');
+  if(w==='weight') DB.logs = DB.logs.filter(l=>l.k!=='w');
+  if(w==='recipe'){ DB.logs.forEach(l => { if(l.r){ const r = recipeById(l.r); if(r) l.x = l.x ? `${r.t} · ${l.x}` : r.t; delete l.r; } }); DB.recipes = []; }
+  if(w==='all') DB = {recipes:[], logs:[]};
+  save(); render(); toast('삭제했어요');
+});
+
+/* 테마 */
+function setTheme(v){
+  if(v==='auto') delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = v;
+  try{ localStorage.setItem('rnote.theme', v); }catch(e){}
+  if(tab==='weight') renderWeight();
+}
+try{ const t = localStorage.getItem('rnote.theme'); if(t && t!=='auto') document.documentElement.dataset.theme = t; }catch(e){}
+seg($('#themeSeg'), setTheme);
+
+if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+go('recipes');
+</script>
+</body>
+</html>

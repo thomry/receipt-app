@@ -1,0 +1,9 @@
+{
+  "name": "내 레시피 노트",
+  "short_name": "레시피노트",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#faf8f5",
+  "theme_color": "#c2410c",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
