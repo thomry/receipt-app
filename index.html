@@ -131,8 +131,8 @@ a{color:var(--accent)}
     <div class="row small">
       <div class="seg grow" id="sortSeg">
         <button data-v="new" aria-pressed="true">최신순</button>
-        <button data-v="freq" aria-pressed="false">자주 만든 순</button>
-        <button data-v="hot" aria-pressed="false">🔥 자주 만든 것만</button>
+        <button data-v="freq" aria-pressed="false">자주 먹은 순</button>
+        <button data-v="hot" aria-pressed="false">🔥 자주 먹은 것만</button>
       </div>
     </div>
     <div class="list" id="rlist"></div>
@@ -250,7 +250,7 @@ a{color:var(--accent)}
  logs:    {i:id, d:'YYYY-MM-DD', h:'HH:MM', k:'m'(먹은것)|'w'(몸무게), x:자유메모, r:레시피id, w:kg}
 */
 const KEY = 'rnote.v1';
-const DEFAULT_CATS = ['메인요리','디저트'];
+const DEFAULT_CATS = ['메인요리','디저트','밀프랩'];
 let DB = load();
 function load(){
   try{ const d = JSON.parse(localStorage.getItem(KEY)); if(d && d.recipes) return d; }catch(e){}
@@ -314,7 +314,7 @@ function seg(el, cb){
 
 /* ============ 레시피 목록/검색 ============ */
 let cat = '전체', sort = 'new';
-const HOT_MIN = 3; // 이만큼 이상 만들면 '자주 만든'
+const HOT_MIN = 3; // 달력에 이만큼 이상 기록되면 '자주 먹은'
 $('#q').addEventListener('input', renderRecipes);
 seg($('#sortSeg'), v => { sort = v; renderRecipes(); });
 function renderRecipes(){
@@ -334,7 +334,7 @@ function renderRecipes(){
 
   $('#hsub').textContent = `${DB.recipes.length}개 저장됨`;
   if(!list.length){
-    $('#rlist').innerHTML = `<div class="empty">${DB.recipes.length ? (sort==='hot' ? `달력에 ${HOT_MIN}번 이상 기록된 레시피가 아직 없어요` : '조건에 맞는 레시피가 없어요') : '아직 저장한 레시피가 없어요.<br>오른쪽 아래 <b>+</b> 를 눌러 추가해 보세요.'}</div>`;
+    $('#rlist').innerHTML = `<div class="empty">${DB.recipes.length ? (sort==='hot' ? `${HOT_MIN}번 이상 먹은 레시피가 아직 없어요` : '조건에 맞는 레시피가 없어요') : '아직 저장한 레시피가 없어요.<br>오른쪽 아래 <b>+</b> 를 눌러 추가해 보세요.'}</div>`;
     return;
   }
   $('#rlist').innerHTML = list.map(r => {
@@ -342,7 +342,7 @@ function renderRecipes(){
     const hit = terms.length ? r.g.filter(g => terms.some(t => g.toLowerCase().includes(t))) : [];
     return `<button class="card ritem" data-id="${r.i}">
       <h3>${esc(r.t)}</h3>
-      <div><span class="badge">${esc(r.c||'기타')}</span>${n ? `<span class="badge ${n>=HOT_MIN?'hot':''}">🍳 ${n}번 만듦</span>`:''}</div>
+      <div><span class="badge">${esc(r.c||'기타')}</span>${r.v?`<span class="badge">${esc(r.v)}</span>`:''}${n ? `<span class="badge ${n>=HOT_MIN?'hot':''}">🍽️ ${n}번 먹음</span>`:''}</div>
       <div class="small muted" style="margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${hit.length ? '✔ '+esc(hit.join(', ')) : esc(r.g.join(', '))}</div>
     </button>`;
   }).join('');
@@ -361,7 +361,7 @@ function showRecipe(id){
   const lastLog = DB.logs.filter(l => l.r===id).sort((a,b)=> (b.d+b.h).localeCompare(a.d+a.h))[0];
   openDlg(`
     <h2>${esc(r.t)}</h2>
-    <div><span class="badge">${esc(r.c||'기타')}</span>${n?`<span class="badge">🍳 ${n}번 만듦</span>`:''}${lastLog?`<span class="badge">최근 ${lastLog.d}</span>`:''}</div>
+    <div><span class="badge">${esc(r.c||'기타')}</span>${r.v?`<span class="badge">📦 ${esc(r.v)}</span>`:''}${n?`<span class="badge">🍽️ ${n}번 먹음</span>`:''}${lastLog?`<span class="badge">최근 ${lastLog.d}</span>`:''}</div>
     ${r.u ? `<p class="small"><a href="${esc(r.u)}" target="_blank" rel="noopener">▶ 원본 영상/링크 열기</a></p>`:''}
     <label class="f">재료</label>
     <div class="ing">${r.g.map(g=>`<span>${esc(g)}</span>`).join('') || '<span class="muted">-</span>'}</div>
@@ -371,7 +371,7 @@ function showRecipe(id){
     <div class="actions">
       <button class="btn danger" id="rDel">삭제</button>
       <button class="btn" id="rEdit">수정</button>
-      <button class="btn primary" id="rAte">오늘 만들었어요</button>
+      <button class="btn primary" id="rAte">오늘 먹었어요</button>
     </div>
     <button class="btn ghost block" style="margin-top:6px" onclick="closeDlg()">닫기</button>`);
   $('#rDel').onclick = () => {
@@ -396,6 +396,8 @@ function recipeForm(r){
     <input id="fCnew" placeholder="새 카테고리 이름 (예: 국/찌개, 반찬)" style="display:none;margin-top:6px">
     <label class="f">유튜브/출처 링크 (선택)</label>
     <input id="fU" type="url" value="${esc(r.u)}" placeholder="https://youtu.be/...">
+    <label class="f">분량 (선택) — 이 레시피로 만들면 나오는 양</label>
+    <input id="fV" value="${esc(r.v||'')}" placeholder="예: 4인분, 도시락 5개">
     <label class="f">재료 — 한 줄에 하나씩 (또는 쉼표로 구분)</label>
     <textarea id="fG" placeholder="밥 1공기&#10;김치 1컵&#10;계란 1개">${esc(r.g.join('\n'))}</textarea>
     <label class="f">요리 순서 — 한 줄에 한 단계</label>
@@ -412,7 +414,8 @@ function recipeForm(r){
     const g = $('#fG').value.split(/\n|,/).map(s=>s.trim()).filter(Boolean);
     const rec = {i: r.i || uid(), t, c, g, s: lines($('#fS').value), a: r.a || Date.now()};
     const u = $('#fU').value.trim(), n = $('#fN').value.trim();
-    if(u) rec.u = u; if(n) rec.n = n;  // 빈 값은 저장하지 않음
+    const v = $('#fV').value.trim();
+    if(u) rec.u = u; if(n) rec.n = n; if(v) rec.v = v;  // 빈 값은 저장하지 않음
     if(isNew) DB.recipes.push(rec); else DB.recipes[DB.recipes.findIndex(x=>x.i===r.i)] = rec;
     save(); closeDlg(); render(); toast('저장했어요');
   };
@@ -460,7 +463,8 @@ function renderDay(){
     if(l.k==='w') return `<div class="tl" data-id="${l.i}"><span class="tm">${l.h}</span><span class="ic w">⚖️</span><div class="body"><div class="t">${l.w} kg</div>${l.x?`<div class="small muted">${esc(l.x)}</div>`:''}</div><button class="btn ghost sm" data-ed="${l.i}">수정</button></div>`;
     const r = l.r && recipeById(l.r);
     return `<div class="tl"><span class="tm">${l.h}</span><span class="ic">🍽️</span><div class="body">
-      ${r ? `<div class="t"><a href="#" data-r="${r.i}">${esc(r.t)}</a></div>` : ''}
+      ${r ? `<div class="t"><a href="#" data-r="${r.i}">${esc(r.t)}</a>${l.q?` <span class="badge">${l.q}인분</span>`:''}</div>` : ''}
+      ${!r && l.q ? `<span class="badge">${l.q}인분</span>`:''}
       ${l.x ? `<div class="${r?'small muted':'t'}">${esc(l.x)}</div>`:''}</div>
       <button class="btn ghost sm" data-ed="${l.i}">수정</button></div>`;
   }).join('');
@@ -489,11 +493,21 @@ function logForm(kind, l){
       <select id="lR"><option value="">— 선택 안 함 —</option>${recs.map(r=>`<option value="${r.i}" ${r.i===l.r?'selected':''}>${esc(r.t)}${cnt[r.i]?` (${cnt[r.i]})`:''}</option>`).join('')}</select>
       <label class="f">자유 메모</label>
       <input id="lX" value="${esc(l.x||'')}" placeholder="예: 편의점 과자, 친구랑 마라탕">
+      <label class="f">먹은 양 (인분)</label>
+      <div class="row">
+        <button type="button" class="btn sm" data-q="-0.5" aria-label="0.5인분 줄이기">−</button>
+        <input id="lQ" type="number" inputmode="decimal" step="0.5" min="0.5" max="20" value="${l.q ?? 1}" style="text-align:center" class="grow">
+        <button type="button" class="btn sm" data-q="0.5" aria-label="0.5인분 늘리기">+</button>
+      </div>
+      <div class="small muted" style="margin-top:4px">레시피 분량과 상관없이 실제로 먹은 양이에요. 보통은 1인분 그대로 두면 돼요.</div>
     `}
     <div class="actions">
       ${isNew ? '<button class="btn" onclick="closeDlg()">취소</button>' : '<button class="btn danger" id="lDel">삭제</button>'}
       <button class="btn primary" id="lSave">저장</button>
     </div>`);
+  $('#dlgBody').querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
+    const el = $('#lQ'); el.value = Math.min(20, Math.max(0.5, (parseFloat(el.value)||1) + parseFloat(b.dataset.q)));
+  });
   if(!isNew) $('#lDel').onclick = () => { if(!confirm('이 기록을 삭제할까요?')) return; DB.logs = DB.logs.filter(x=>x.i!==l.i); save(); closeDlg(); render(); };
   $('#lSave').onclick = () => {
     const rec = {i: l.i || uid(), d: $('#lD').value, h: $('#lH').value || '00:00', k: kind};
@@ -505,6 +519,8 @@ function logForm(kind, l){
       rec.w = Math.round(w*10)/10;
     } else {
       const r = $('#lR').value; if(r) rec.r = r;
+      const q = Math.round(parseFloat($('#lQ').value)*2)/2;
+      if(q > 0 && q !== 1) rec.q = q;  // 1인분(기본값)은 저장하지 않음
       if(!rec.r && !rec.x){ toast('레시피를 고르거나 메모를 적어 주세요'); return; }
     }
     if(isNew) DB.logs.push(rec); else DB.logs[DB.logs.findIndex(z=>z.i===l.i)] = rec;
@@ -619,7 +635,7 @@ function buildReport(rangeDays){
   const meals = logs.filter(l=>l.k==='m'), weights = logs.filter(l=>l.k==='w');
   const rmap = Object.fromEntries(DB.recipes.map(r=>[r.i,r]));
   // 요약 통계
-  const recCount = {}; meals.forEach(m => { if(m.r && rmap[m.r]) recCount[rmap[m.r].t] = (recCount[rmap[m.r].t]||0)+1; });
+  const recCount = {}; meals.forEach(m => { if(m.r && rmap[m.r]){ const o = recCount[rmap[m.r].t] ||= {times:0, portions:0}; o.times++; o.portions += m.q||1; } });
   const byHour = Array(24).fill(0); meals.forEach(m => byHour[+m.h.slice(0,2)]++);
   const byCat = {}; meals.forEach(m => { const c = m.r && rmap[m.r] ? rmap[m.r].c : '(레시피 아님)'; byCat[c] = (byCat[c]||0)+1; });
   const daysWithMeals = new Set(meals.map(m=>m.d)).size;
@@ -628,8 +644,8 @@ function buildReport(rangeDays){
   return {
     _안내: '이 파일은 "내 레시피 노트" 앱의 데이터 내보내기입니다. Claude에게: 아래 schema를 참고해 식습관 패턴, 자주 먹는 음식, 식사 시간대, 몸무게 추세와 식사 기록의 관계 등을 분석해 주세요. 의학적 진단이 아닌 생활 습관 관점의 조언이면 충분합니다.',
     schema: {
-      recipes: '저장된 레시피. id, title, category, ingredients[], steps[], url(출처), note',
-      meals: '먹은 기록. date(YYYY-MM-DD), time(HH:MM, 24시간), recipe(레시피 제목, 레시피에서 고른 경우), memo(자유 입력: 과자/외식 등)',
+      recipes: '저장된 레시피. id, title, category, yield(이 레시피로 한 번 만들면 나오는 양, 예: 4인분 — 먹은 양이 아님), ingredients[], steps[], url(출처), note',
+      meals: '먹은 기록. date(YYYY-MM-DD), time(HH:MM, 24시간), recipe(레시피 제목, 레시피에서 고른 경우), portions(실제로 먹은 양, 인분 단위. 레시피 yield와 무관), memo(자유 입력: 과자/외식 등)',
       weights: '몸무게 기록. date, time, kg, memo(예: 공복)',
       summary: '앱이 미리 계산한 요약 통계'
     },
@@ -639,7 +655,7 @@ function buildReport(rangeDays){
       mealLogCount: meals.length,
       daysWithMealLogs: daysWithMeals,
       avgMealLogsPerLoggedDay: daysWithMeals ? +(meals.length/daysWithMeals).toFixed(2) : 0,
-      mostCookedRecipes: Object.entries(recCount).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([title,count])=>({title,count})),
+      mostEatenRecipes: Object.entries(recCount).sort((a,b)=>b[1].times-a[1].times).slice(0,10).map(([title,o])=>({title, times:o.times, portions:o.portions})),
       mealsByCategory: byCat,
       mealsByHour: Object.fromEntries(byHour.map((n,h)=>[pad(h), n]).filter(x=>x[1])),
       weight: weights.length ? {
@@ -649,8 +665,8 @@ function buildReport(rangeDays){
         weeklyAverage: Object.entries(weekly).map(([weekStart, a]) => ({weekStart, avg: +(a.reduce((s,x)=>s+x,0)/a.length).toFixed(2), n: a.length}))
       } : null
     },
-    recipes: DB.recipes.map(r => ({id:r.i, title:r.t, category:r.c, ingredients:r.g, steps:r.s, url:r.u, note:r.n})),
-    meals: meals.map(m => ({date:m.d, time:m.h, recipe: m.r && rmap[m.r] ? rmap[m.r].t : undefined, memo:m.x})),
+    recipes: DB.recipes.map(r => ({id:r.i, title:r.t, category:r.c, yield:r.v, ingredients:r.g, steps:r.s, url:r.u, note:r.n})),
+    meals: meals.map(m => ({date:m.d, time:m.h, recipe: m.r && rmap[m.r] ? rmap[m.r].t : undefined, portions: m.q||1, memo:m.x})),
     weights: weights.map(w => ({date:w.d, time:w.h, kg:w.w, memo:w.x}))
   };
 }
