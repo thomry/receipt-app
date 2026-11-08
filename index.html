@@ -204,7 +204,7 @@ a{color:var(--accent)}
         <button class="btn grow" id="backup">백업 파일 저장</button>
         <button class="btn grow" id="restoreBtn">백업 불러오기</button>
       </div>
-      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+      <input type="file" id="restoreFile" accept="application/json,text/plain,.json,.txt" hidden>
     </div>
 
     <h2 class="sec">🗑️ 데이터 정리</h2>
@@ -390,7 +390,7 @@ function recipeForm(r){
   openDlg(`
     <h2>${isNew?'레시피 추가':'레시피 수정'}</h2>
     <label class="f">제목 *</label>
-    <input id="fT" value="${esc(r.t)}" placeholder="예: 백종원 김치볶음밥">
+    <input id="fT" value="${esc(r.t)}" placeholder="예: 김치볶음밥">
     <label class="f">카테고리</label>
     <select id="fC">${cats.map(c=>`<option ${c===r.c?'selected':''}>${esc(c)}</option>`).join('')}<option value="__new">+ 새 카테고리…</option></select>
     <input id="fCnew" placeholder="새 카테고리 이름 (예: 국/찌개, 반찬)" style="display:none;margin-top:6px">
@@ -618,15 +618,48 @@ function renderSettings(){
   $$('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===tm));
 }
 
-function download(name, obj){
-  const blob = new Blob([JSON.stringify(obj, null, 1)], {type:'application/json'});
-  const file = new File([blob], name, {type:'application/json'});
-  if(navigator.canShare && navigator.canShare({files:[file]})){
-    navigator.share({files:[file], title:name}).catch(()=>{});
-    return;
-  }
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name;
-  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 1000);
+/* 내보내기: 폰마다 되는 방식이 달라서 저장 / 공유 / 복사 세 가지를 다 제공 */
+function download(name, obj, isReport){
+  const text = JSON.stringify(obj, null, 1);
+  const kb = (new Blob([text]).size/1024).toFixed(1);
+  openDlg(`
+    <h2>${isReport ? '📊 리포트 준비 완료' : '💾 백업 준비 완료'}</h2>
+    <div class="small muted">${esc(name)} · ${kb} KB</div>
+    ${isReport ? `<p class="small">Claude 대화창에 <b>파일을 올리거나</b>, <b>복사해서 붙여넣고</b> “분석해줘”라고 하면 돼요.</p>` : `<p class="small">안전한 곳(내 드라이브, 나에게 보내기 등)에 보관해 두세요.</p>`}
+    <div class="stack" style="margin-top:12px">
+      <button class="btn primary block" id="exSave">📥 파일로 저장</button>
+      ${navigator.share ? '<button class="btn block" id="exShare">📤 공유하기 (카톡·드라이브 등)</button>' : ''}
+      <button class="btn block" id="exCopy">📋 내용 복사하기</button>
+      <button class="btn ghost block" onclick="closeDlg()">닫기</button>
+    </div>`);
+  $('#exSave').onclick = () => {
+    try{
+      const url = URL.createObjectURL(new Blob([text], {type:'application/octet-stream'}));
+      const a = document.createElement('a'); a.href = url; a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url), 60000);
+      toast('저장했어요. “다운로드” 폴더를 확인해 주세요');
+    }catch(e){ toast('저장이 안 돼요. 공유하기나 복사하기를 써 주세요'); }
+  };
+  if($('#exShare')) $('#exShare').onclick = async () => {
+    // 일부 폰은 .json 공유를 막아서 .txt로도 시도
+    const tries = [new File([text], name, {type:'application/json'}), new File([text], name.replace(/\.json$/,'.txt'), {type:'text/plain'})];
+    for(const f of tries){
+      if(navigator.canShare && navigator.canShare({files:[f]})){
+        try{ await navigator.share({files:[f], title:name}); return; }
+        catch(e){ if(e.name==='AbortError') return; }
+      }
+    }
+    toast('이 폰에선 파일 공유가 안 돼요. 저장이나 복사를 써 주세요');
+  };
+  $('#exCopy').onclick = async () => {
+    try{ await navigator.clipboard.writeText(text); toast('복사했어요! Claude 대화창에 붙여넣기 하세요'); }
+    catch(e){
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+      try{ document.execCommand('copy'); toast('복사했어요!'); }catch(_){ toast('복사가 안 돼요'); }
+      ta.remove();
+    }
+  };
 }
 
 function buildReport(rangeDays){
@@ -642,7 +675,16 @@ function buildReport(rangeDays){
   const weekly = {};
   weights.forEach(w => { const d = parseYmd(w.d); d.setDate(d.getDate() - ((d.getDay()+6)%7)); const k = ymd(d); (weekly[k] ||= []).push(w.w); });
   return {
-    _안내: '이 파일은 "내 레시피 노트" 앱의 데이터 내보내기입니다. Claude에게: 아래 schema를 참고해 식습관 패턴, 자주 먹는 음식, 식사 시간대, 몸무게 추세와 식사 기록의 관계 등을 분석해 주세요. 의학적 진단이 아닌 생활 습관 관점의 조언이면 충분합니다.',
+    _안내: '이 파일은 "내 레시피 노트" 앱에서 내보낸 개인 식사·몸무게 기록입니다. Claude에게: 아래 분석요청 항목을 참고해 분석해 주세요. 의학적 진단이 아닌 생활 습관 관점의 조언이면 충분하고, 데이터가 부족한 항목은 부족하다고 말해 주세요.',
+    분석요청: [
+      '1. 자주 먹는 음식과 카테고리(메인요리/디저트/밀프랩 등) 편중',
+      '2. 식사 시간대 패턴: 끼니 간격, 늦은 밤 식사, 식사를 거른 날',
+      '3. 레시피 아닌 기록(과자·외식 등 memo)의 빈도와 패턴',
+      '4. 몸무게 추세(주간 평균)와, 몸무게가 오르내린 시기의 식사 기록 비교',
+      '5. 밀프랩 활용: 레시피 yield(만든 양)와 실제로 먹은 portions 비교',
+      '6. 기록이 빠진 기간과 앞으로 기록하면 좋을 것',
+      '7. 위 내용을 바탕으로 한 실천 가능한 제안 3가지'
+    ],
     schema: {
       recipes: '저장된 레시피. id, title, category, yield(이 레시피로 한 번 만들면 나오는 양, 예: 4인분 — 먹은 양이 아님), ingredients[], steps[], url(출처), note',
       meals: '먹은 기록. date(YYYY-MM-DD), time(HH:MM, 24시간), recipe(레시피 제목, 레시피에서 고른 경우), portions(실제로 먹은 양, 인분 단위. 레시피 yield와 무관), memo(자유 입력: 과자/외식 등)',
@@ -672,7 +714,7 @@ function buildReport(rangeDays){
 }
 $('#exportReport').onclick = () => {
   const r = +$('#repRange').value;
-  download(`recipe-report-${ymd(new Date())}.json`, buildReport(r));
+  download(`recipe-report-${ymd(new Date())}.json`, buildReport(r), true);
 };
 $('#backup').onclick = () => download(`recipe-backup-${ymd(new Date())}.json`, {app:'rnote', v:1, savedAt:new Date().toISOString(), data:DB});
 $('#restoreBtn').onclick = () => $('#restoreFile').click();
