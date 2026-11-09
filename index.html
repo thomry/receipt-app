@@ -213,6 +213,7 @@ input[type=search]::-webkit-search-cancel-button{display:none}
         <button class="btn grow" id="backup">백업 파일 저장</button>
         <button class="btn grow" id="restoreBtn">백업 불러오기</button>
       </div>
+      <button class="btn ghost block small" id="restorePaste">📋 복사해 둔 백업 내용 붙여넣어 복원</button>
       <input type="file" id="restoreFile" accept="application/json,text/plain,.json,.txt" hidden>
     </div>
 
@@ -281,7 +282,7 @@ const nowHM = () => { const d = new Date(); return `${pad(d.getHours())}:${pad(d
 const parseYmd = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y,m-1,d); };
 const daysAgo = n => { const d = new Date(); d.setDate(d.getDate()-n); return ymd(d); };
 const recipeById = id => DB.recipes.find(r => r.i === id);
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 2200); }
+function toast(msg){ const t = $('#toast'); const host = dlg.open ? dlg : document.body; if(t.parentNode !== host) host.appendChild(t); t.textContent = msg; t.classList.add('on'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('on'), 2200); }
 
 /* 레시피별로 달력에 몇 번 기록됐는지 */
 function cookCounts(){
@@ -678,20 +679,49 @@ function renderSettings(){
   $$('#themeSeg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.v===tm));
 }
 
-/* 내보내기: 폰마다 되는 방식이 달라서 저장 / 공유 / 복사 세 가지를 다 제공 */
+/* 내보내기: 폰마다 되는 방식이 달라서 저장 / 공유 / 복사를 다 제공 */
+async function copyText(text){
+  try{ await navigator.clipboard.writeText(text); return true; }
+  catch(e){
+    const ta = document.createElement('textarea'); ta.value = text; ta.setAttribute('readonly','');
+    ta.style.position = 'fixed'; ta.style.opacity = '0'; (dlg.open ? dlg : document.body).appendChild(ta); ta.select();
+    let ok = false; try{ ok = document.execCommand('copy'); }catch(_){}
+    ta.remove(); return ok;
+  }
+}
 function download(name, obj, isReport){
   const text = JSON.stringify(obj, null, 1);
   const kb = (new Blob([text]).size/1024).toFixed(1);
+  const txtName = name.replace(/\.json$/,'.txt');
+  const canShare = !!navigator.share;
   openDlg(`
     <h2>${isReport ? '📊 리포트 준비 완료' : '💾 백업 준비 완료'}</h2>
     <div class="small muted">${esc(name)} · ${kb} KB</div>
-    ${isReport ? `<p class="small">Claude 대화창에 <b>파일을 올리거나</b>, <b>복사해서 붙여넣고</b> “분석해줘”라고 하면 돼요.</p>` : `<p class="small">안전한 곳(내 드라이브, 나에게 보내기 등)에 보관해 두세요.</p>`}
+    ${isReport
+      ? `<p class="small"><b>AI 앱으로 보내기</b>를 누르고 Claude 앱(또는 다른 AI 앱)을 고르면 내용이 바로 입력창에 들어가요. 안 되면 <b>복사하기</b> 후 붙여넣으세요.</p>`
+      : `<p class="small"><b>파일로 공유</b>에서 드라이브나 카톡 ‘나와의 채팅’을 고르면 보관하기 좋아요. 복원은 설정 → 백업 불러오기에서 파일을 고르거나, 붙여넣기로도 할 수 있어요.</p>`}
     <div class="stack" style="margin-top:12px">
-      <button class="btn primary block" id="exSave">📥 파일로 저장</button>
-      ${navigator.share ? '<button class="btn block" id="exShare">📤 공유하기 (카톡·드라이브 등)</button>' : ''}
+      ${isReport && canShare ? '<button class="btn primary block" id="exText">🤖 AI 앱으로 보내기</button>' : ''}
+      ${canShare ? `<button class="btn ${isReport?'':'primary'} block" id="exFile">📤 파일로 공유 (드라이브·카톡 등)</button>` : ''}
       <button class="btn block" id="exCopy">📋 내용 복사하기</button>
+      <button class="btn block" id="exSave">📥 폰에 파일로 저장</button>
       <button class="btn ghost block" onclick="closeDlg()">닫기</button>
     </div>`);
+
+  const fallbackCopy = async why => {
+    const ok = await copyText(text);
+    toast(ok ? `${why} 대신 내용을 복사했어요. 붙여넣기 하세요` : `${why}. 저장 버튼을 써 주세요`);
+  };
+  // 공유는 버튼을 누른 그 순간에 바로 호출해야 해서, await 없이 한 번만 부름
+  if($('#exText')) $('#exText').onclick = () => {
+    navigator.share({ text }).then(()=>{}).catch(e => { if(e.name !== 'AbortError') fallbackCopy('공유가 안 돼서'); });
+  };
+  if($('#exFile')) $('#exFile').onclick = () => {
+    const f = new File([text], txtName, {type:'text/plain'});  // .json은 막는 폰이 많아서 .txt로 공유
+    if(navigator.canShare && !navigator.canShare({files:[f]})){ fallbackCopy('이 폰은 파일 공유를 지원하지 않아서'); return; }
+    navigator.share({ files:[f] }).catch(e => { if(e.name !== 'AbortError') fallbackCopy(`파일 공유가 안 돼서(${e.name})`); });
+  };
+  $('#exCopy').onclick = async () => toast(await copyText(text) ? '복사했어요! 원하는 곳에 붙여넣기 하세요' : '복사가 안 돼요. 저장 버튼을 써 주세요');
   $('#exSave').onclick = () => {
     try{
       const url = URL.createObjectURL(new Blob([text], {type:'application/octet-stream'}));
@@ -699,26 +729,7 @@ function download(name, obj, isReport){
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(()=>URL.revokeObjectURL(url), 60000);
       toast('저장했어요. “다운로드” 폴더를 확인해 주세요');
-    }catch(e){ toast('저장이 안 돼요. 공유하기나 복사하기를 써 주세요'); }
-  };
-  if($('#exShare')) $('#exShare').onclick = async () => {
-    // 일부 폰은 .json 공유를 막아서 .txt로도 시도
-    const tries = [new File([text], name, {type:'application/json'}), new File([text], name.replace(/\.json$/,'.txt'), {type:'text/plain'})];
-    for(const f of tries){
-      if(navigator.canShare && navigator.canShare({files:[f]})){
-        try{ await navigator.share({files:[f], title:name}); return; }
-        catch(e){ if(e.name==='AbortError') return; }
-      }
-    }
-    toast('이 폰에선 파일 공유가 안 돼요. 저장이나 복사를 써 주세요');
-  };
-  $('#exCopy').onclick = async () => {
-    try{ await navigator.clipboard.writeText(text); toast('복사했어요! Claude 대화창에 붙여넣기 하세요'); }
-    catch(e){
-      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
-      try{ document.execCommand('copy'); toast('복사했어요!'); }catch(_){ toast('복사가 안 돼요'); }
-      ta.remove();
-    }
+    }catch(e){ fallbackCopy('저장이 안 돼서'); }
   };
 }
 
@@ -777,19 +788,27 @@ $('#exportReport').onclick = () => {
 };
 $('#backup').onclick = () => download(`recipe-backup-${ymd(new Date())}.json`, {app:'rnote', v:1, savedAt:new Date().toISOString(), data:DB});
 $('#restoreBtn').onclick = () => $('#restoreFile').click();
+function importBackup(raw){
+  let j;
+  try{ j = JSON.parse(raw); }catch(_){ toast('백업 내용이 아니에요'); return false; }
+  const d = j && j.data;
+  if(!j || j.app!=='rnote' || !d || !Array.isArray(d.recipes) || !Array.isArray(d.logs)){ toast('백업 파일이 아니에요 (리포트는 복원용이 아니에요)'); return false; }
+  if(!confirm(`레시피 ${d.recipes.length}개, 기록 ${d.logs.length}개가 들어있어요.\n\n[확인] 지금 데이터와 합치기 (겹치는 건 건너뜀)\n[취소] 그만두기`)) return false;
+  const ids = new Set([...DB.recipes, ...DB.logs].map(x=>x.i));
+  DB.recipes.push(...d.recipes.filter(x=>!ids.has(x.i)));
+  DB.logs.push(...d.logs.filter(x=>!ids.has(x.i)));
+  save(); render(); toast('불러왔어요'); return true;
+}
 $('#restoreFile').onchange = async e => {
   const f = e.target.files[0]; e.target.value = ''; if(!f) return;
-  try{
-    const j = JSON.parse(await f.text());
-    const d = j.data;
-    if(j.app!=='rnote' || !d || !Array.isArray(d.recipes) || !Array.isArray(d.logs)) throw 0;
-    const mode = confirm(`레시피 ${d.recipes.length}개, 기록 ${d.logs.length}개가 들어있어요.\n\n[확인] 지금 데이터와 합치기\n[취소] 그만두기`);
-    if(!mode) return;
-    const ids = new Set([...DB.recipes, ...DB.logs].map(x=>x.i));
-    DB.recipes.push(...d.recipes.filter(x=>!ids.has(x.i)));
-    DB.logs.push(...d.logs.filter(x=>!ids.has(x.i)));
-    save(); render(); toast('불러왔어요');
-  }catch(_){ toast('백업 파일이 아니에요 (리포트 파일은 복원용이 아니에요)'); }
+  importBackup(await f.text());
+};
+$('#restorePaste').onclick = () => {
+  openDlg(`<h2>붙여넣어 복원</h2>
+    <p class="small muted">카톡이나 메모에 보관한 백업 내용을 전부 복사해서 아래에 붙여넣어 주세요.</p>
+    <textarea id="pasteBox" style="min-height:180px;font-size:12px" placeholder='{"app":"rnote", ...'></textarea>
+    <div class="actions"><button class="btn" onclick="closeDlg()">취소</button><button class="btn primary" id="pasteGo">복원</button></div>`);
+  $('#pasteGo').onclick = () => { if(importBackup($('#pasteBox').value.trim())) closeDlg(); };
 };
 $('#cutBtn').onclick = () => {
   const d = $('#cutDate').value; if(!d){ toast('날짜를 골라 주세요'); return; }
