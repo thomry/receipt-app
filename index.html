@@ -699,10 +699,10 @@ function download(name, obj, isReport){
     <div class="small muted">${esc(name)} · ${kb} KB</div>
     ${isReport
       ? `<p class="small"><b>AI 앱으로 보내기</b>를 누르고 Claude 앱(또는 다른 AI 앱)을 고르면 내용이 바로 입력창에 들어가요. 안 되면 <b>복사하기</b> 후 붙여넣으세요.</p>`
-      : `<p class="small"><b>파일로 공유</b>에서 드라이브나 카톡 ‘나와의 채팅’을 고르면 보관하기 좋아요. 복원은 설정 → 백업 불러오기에서 파일을 고르거나, 붙여넣기로도 할 수 있어요.</p>`}
+      : `<p class="small"><b>공유하기</b>에서 드라이브나 카톡 ‘나와의 채팅’을 고르면 보관하기 좋아요. 복원은 설정 → 백업 불러오기에서 파일을 고르거나, 붙여넣기로도 할 수 있어요.</p>`}
     <div class="stack" style="margin-top:12px">
       ${isReport && canShare ? '<button class="btn primary block" id="exText">🤖 AI 앱으로 보내기</button>' : ''}
-      ${canShare ? `<button class="btn ${isReport?'':'primary'} block" id="exFile">📤 파일로 공유 (드라이브·카톡 등)</button>` : ''}
+      ${!isReport && canShare ? '<button class="btn primary block" id="exFile">📤 공유하기 (드라이브·카톡 등)</button>' : ''}
       <button class="btn block" id="exCopy">📋 내용 복사하기</button>
       <button class="btn block" id="exSave">📥 폰에 파일로 저장</button>
       <button class="btn ghost block" onclick="closeDlg()">닫기</button>
