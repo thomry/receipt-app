@@ -119,6 +119,15 @@ h2.sec{font-size:15px;margin:22px 0 8px}
 .toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;z-index:100;opacity:0;transition:opacity .2s;pointer-events:none}
 .toast.on{opacity:1}
 a{color:var(--accent)}
+.combo{position:relative}
+.combo input[type=search]{padding-right:40px}
+.combo-x{position:absolute;right:4px;top:4px;width:36px;height:36px;border:0;background:none;color:var(--muted);font-size:16px}
+.combo-list{margin-top:6px;border:1px solid var(--line);border-radius:10px;max-height:240px;overflow-y:auto;background:var(--surface)}
+.combo-item{display:flex;gap:8px;align-items:center;width:100%;text-align:left;border:0;border-bottom:1px solid var(--line);background:none;font:inherit;color:var(--ink);padding:10px 12px}
+.combo-item:last-child{border-bottom:0}
+.combo-item.on{background:var(--accent-soft)}
+.combo-item .grow{flex:1;min-width:0}
+input[type=search]::-webkit-search-cancel-button{display:none}
 </style>
 </head>
 <body>
@@ -472,6 +481,50 @@ function renderDay(){
   $('#timeline').querySelectorAll('[data-r]').forEach(a => a.onclick = e => { e.preventDefault(); showRecipe(a.dataset.r); });
 }
 
+/* 초성 검색용 */
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const chosung = s => [...s].map(c => { const k = c.charCodeAt(0) - 0xAC00; return k >= 0 && k < 11172 ? CHO[Math.floor(k/588)] : c; }).join('');
+const isCho = q => /^[ㄱ-ㅎ\s]+$/.test(q);
+
+function recipeCombo(recs, cnt){
+  const q = $('#lRq'), hid = $('#lR'), list = $('#lRlist'), x = $('#lRx');
+  if(!q || q.disabled) return;
+  const show = () => {
+    const t = q.value.trim().toLowerCase().replace(/\s+/g,'');
+    let hits = recs;
+    if(t) hits = recs.filter(r => {
+      const title = r.t.toLowerCase().replace(/\s+/g,'');
+      if(title.includes(t)) return true;
+      if(isCho(t) && chosung(title).includes(t)) return true;
+      return r.g.some(g => g.toLowerCase().includes(t));
+    });
+    hits = hits.slice(0, 30);
+    list.innerHTML = hits.length ? hits.map(r => {
+      const ingHit = t && !r.t.toLowerCase().replace(/\s+/g,'').includes(t) && !isCho(t) ? r.g.filter(g=>g.toLowerCase().includes(t)) : [];
+      return `<button type="button" class="combo-item ${r.i===hid.value?'on':''}" data-id="${r.i}" role="option">
+        <span class="grow">${esc(r.t)}${ingHit.length?`<span class="small muted"> · ${esc(ingHit.join(', '))}</span>`:''}</span>
+        <span class="small muted">${esc(r.c||'')}${cnt[r.i]?` · ${cnt[r.i]}번`:''}</span></button>`;
+    }).join('') : `<div class="small muted" style="padding:10px 12px">맞는 레시피가 없어요. 아래 자유 메모에 적어도 돼요.</div>`;
+    list.hidden = false;
+  };
+  const pick = r => { hid.value = r ? r.i : ''; q.value = r ? r.t : ''; x.style.display = r ? '' : 'none'; list.hidden = true; };
+  q.addEventListener('focus', show);
+  q.addEventListener('input', () => { hid.value = ''; x.style.display = q.value ? '' : 'none'; show(); });
+  q.addEventListener('blur', () => setTimeout(() => {
+    list.hidden = true;
+    // 고르지 않고 글자만 남아 있으면, 정확히 같은 이름이 있을 때만 자동 선택
+    if(!hid.value && q.value.trim()){
+      const m = recs.find(r => r.t === q.value.trim());
+      if(m) pick(m);
+    }
+  }, 150));
+  list.addEventListener('pointerdown', e => {
+    const b = e.target.closest('.combo-item'); if(!b) return;
+    e.preventDefault(); pick(recipeById(b.dataset.id)); q.blur();
+  });
+  x.onclick = () => { pick(null); q.focus(); };
+}
+
 function logForm(kind, l){
   const isNew = !l.i;
   const cnt = cookCounts();
@@ -490,7 +543,12 @@ function logForm(kind, l){
       <input id="lX" value="${esc(l.x||'')}" placeholder="예: 공복, 운동 후">
     ` : `
       <label class="f">내 레시피에서 고르기 (선택)</label>
-      <select id="lR"><option value="">— 선택 안 함 —</option>${recs.map(r=>`<option value="${r.i}" ${r.i===l.r?'selected':''}>${esc(r.t)}${cnt[r.i]?` (${cnt[r.i]})`:''}</option>`).join('')}</select>
+      <div class="combo">
+        <input id="lRq" type="search" autocomplete="off" placeholder="${recs.length ? '레시피 이름·재료·초성으로 검색 (예: ㄱㅊ)' : '저장된 레시피가 없어요'}" value="${l.r && recipeById(l.r) ? esc(recipeById(l.r).t) : ''}" ${recs.length?'':'disabled'}>
+        <button type="button" class="combo-x" id="lRx" aria-label="선택 지우기" style="${l.r?'':'display:none'}">✕</button>
+        <input type="hidden" id="lR" value="${l.r||''}">
+        <div class="combo-list" id="lRlist" role="listbox" hidden></div>
+      </div>
       <label class="f">자유 메모</label>
       <input id="lX" value="${esc(l.x||'')}" placeholder="예: 편의점 과자, 친구랑 마라탕">
       <label class="f">먹은 양 (인분)</label>
@@ -505,6 +563,7 @@ function logForm(kind, l){
       ${isNew ? '<button class="btn" onclick="closeDlg()">취소</button>' : '<button class="btn danger" id="lDel">삭제</button>'}
       <button class="btn primary" id="lSave">저장</button>
     </div>`);
+  if(kind==='m') recipeCombo(recs, cnt);
   $('#dlgBody').querySelectorAll('[data-q]').forEach(b => b.onclick = () => {
     const el = $('#lQ'); el.value = Math.min(20, Math.max(0.5, (parseFloat(el.value)||1) + parseFloat(b.dataset.q)));
   });
@@ -519,6 +578,7 @@ function logForm(kind, l){
       rec.w = Math.round(w*10)/10;
     } else {
       const r = $('#lR').value; if(r) rec.r = r;
+      if(!r && $('#lRq') && $('#lRq').value.trim() && !rec.x){ rec.x = $('#lRq').value.trim(); }  // 검색창에만 적고 안 고른 경우 메모로 저장
       const q = Math.round(parseFloat($('#lQ').value)*2)/2;
       if(q > 0 && q !== 1) rec.q = q;  // 1인분(기본값)은 저장하지 않음
       if(!rec.r && !rec.x){ toast('레시피를 고르거나 메모를 적어 주세요'); return; }
@@ -675,15 +735,14 @@ function buildReport(rangeDays){
   const weekly = {};
   weights.forEach(w => { const d = parseYmd(w.d); d.setDate(d.getDate() - ((d.getDay()+6)%7)); const k = ymd(d); (weekly[k] ||= []).push(w.w); });
   return {
-    _안내: '이 파일은 "내 레시피 노트" 앱에서 내보낸 개인 식사·몸무게 기록입니다. Claude에게: 아래 분석요청 항목을 참고해 분석해 주세요. 의학적 진단이 아닌 생활 습관 관점의 조언이면 충분하고, 데이터가 부족한 항목은 부족하다고 말해 주세요.',
-    분석요청: [
-      '1. 자주 먹는 음식과 카테고리(메인요리/디저트/밀프랩 등) 편중',
-      '2. 식사 시간대 패턴: 끼니 간격, 늦은 밤 식사, 식사를 거른 날',
-      '3. 레시피 아닌 기록(과자·외식 등 memo)의 빈도와 패턴',
-      '4. 몸무게 추세(주간 평균)와, 몸무게가 오르내린 시기의 식사 기록 비교',
-      '5. 밀프랩 활용: 레시피 yield(만든 양)와 실제로 먹은 portions 비교',
-      '6. 기록이 빠진 기간과 앞으로 기록하면 좋을 것',
-      '7. 위 내용을 바탕으로 한 실천 가능한 제안 3가지'
+    _안내: '이 파일은 "내 레시피 노트" 앱에서 내보낸 개인 식사·몸무게 기록입니다. Claude에게: 바로 분석하지 말고, 아래 분석순서의 0단계 질문부터 먼저 하고 답을 기다려 주세요. 답을 받은 뒤 1~5단계를 순서대로, 각 단계에 제목을 붙여 분석해 주세요. 의학적 진단이 아닌 생활 습관 관점의 조언이면 충분하고, 데이터가 부족한 부분은 부족하다고 분명히 말해 주세요.',
+    분석순서: [
+      '0. [먼저 질문] 분석 목적을 물어봐 주세요: 다이어트(감량) / 유지어터(현재 몸무게 유지) / 증량·근육 / 그 외. 감량·증량이면 목표 몸무게나 기간이 있는지도 함께 물어봐 주세요. 이어서 그 밖에 신경 쓰는 점(예: 야식, 단 음식, 단백질 섭취, 외식, 혈당, 규칙적인 식사 등)이 있는지 물어봐 주세요. 두 질문에 답을 받은 뒤에 1단계부터 진행하세요.',
+      '1. 전체 음식 분석: 무엇을 자주 먹는지, 카테고리(메인요리/디저트/밀프랩 등) 편중, 레시피 아닌 기록(memo: 과자·외식 등)의 비중을 0단계에서 답한 목적에 맞춰 평가',
+      '2. 식사 시간대 분석: 하루 첫 끼·마지막 끼 시각, 끼니 간격, 늦은 밤 식사, 식사를 거른 날, 평일과 주말 차이',
+      '3. 탄단지(탄수화물·단백질·지방) 추정: 레시피의 재료와 portions(먹은 인분), 레시피 아닌 memo 기록(일반적인 1회 제공량 기준)까지 모두 포함해서 추정. 대략적인 비율과 함께 하루 평균 g(그램)·kcal도 구체적인 숫자 범위로 제시하고, 추정치라는 점과 추정 근거(어떤 음식을 어떻게 가정했는지)를 짧게 밝혀 주세요. 부족하거나 과한 영양소가 있으면 지적',
+      '4. 몸무게 변동 분석: 주간 평균 추세, 변화 속도, 하루 중 잰 시간에 따른 차이, 몸무게가 오르내린 시기 직전의 식사 기록 비교 (목적 대비 순조로운지 평가)',
+      '5. 신경 쓰이는 점 & 더 기록하면 좋을 것: 0단계에서 말한 관심사를 중심으로 눈에 띄는 패턴, 실천 가능한 제안 3가지, 그리고 분석 정확도를 높이려면 앞으로 무엇을 더 적으면 좋을지(예: 외식 메뉴 이름, 간식 양, 음료, 몸무게 재는 시간 통일 등)'
     ],
     schema: {
       recipes: '저장된 레시피. id, title, category, yield(이 레시피로 한 번 만들면 나오는 양, 예: 4인분 — 먹은 양이 아님), ingredients[], steps[], url(출처), note',
